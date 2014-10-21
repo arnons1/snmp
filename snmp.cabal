@@ -38,6 +38,7 @@ library
                        crypto-cipher-types, 
                        securemem, 
                        attoparsec,
+                       scientific,
                        random, 
                        cipher-aes
   hs-source-dirs:      src
