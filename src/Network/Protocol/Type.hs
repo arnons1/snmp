@@ -16,6 +16,7 @@ data Mib = Mib
   , mibType :: MibType
   , syntax :: Maybe MibSyntax
   , hint   :: Maybe Hint
+  , units  :: Maybe Units
   , access :: Maybe MaxAccess
   , status :: Maybe MibStatus
   , index  :: Maybe AIndex
@@ -29,10 +30,11 @@ mibP = Mib <$> (comment *> mibGroupP )
            <*> (comment *> mibTypeP )
            <*> (comment *> syntaxP )
            <*> (comment *> hintP )
+           <*> (comment *> unitsP )
            <*> (comment *> accessP) 
            <*> (comment *> statusP )
            <*> (comment *> aIndexP )
-           <*> (comment *> descriptionP )
+           <*> (comment *> objectsP *> descriptionP  <* defVal)
            <*> (comment *> oidsP)
 
 mibGroupP :: Parser Text
@@ -58,6 +60,7 @@ mibTypeP = "OBJECT-TYPE" *> pure ObjectType <* el
        <|> "NOTIFICATION-TYPE" *> pure NotificationType <* el
        <|> "MODULE-IDENTITY" *> pure ModuleIdentity <* el
        <|> "MODULE-COMPLIANCE" *> pure ModuleCompliance <* el
+       <|> "type_23" *> pure Type23 <* el
 
 comment :: Parser ()
 comment = skipMany $ do
@@ -72,6 +75,7 @@ data MibType = ModuleCompliance
              | ObjectGroup
              | ObjectIdentity
              | ObjectType
+             | Type23
              deriving (Show, Eq)
 
 syntaxP :: Parser (Maybe MibSyntax)
@@ -211,10 +215,23 @@ data AIndex = AU [Text]
             | IN [Index]
             deriving (Show, Eq)
 
-descriptionP :: Parser (Maybe Text)
-descriptionP = (Just <$> desc) <|> pure Nothing
+newtype Units = Units Text deriving (Show, Eq)
+
+unitsP :: Parser (Maybe Units)
+unitsP = (Just <$> units') <|> pure Nothing
     where
-    desc = sp *> "DESCRIPTION" *> sp *> char '"' *> takeWhile1 (/= '"') <* char '"' <* el
+    units' = Units <$> (sp *> "UNITS" *> sp *> char '"' *> takeWhile1 (/= '"') <* char '"' <* el)
+
+objectsP :: Parser ()
+objectsP = sp *> "OBJECTS" *> takeWhile (not . isEndOfLine) *> endOfLine <|> pure () 
+
+defVal :: Parser ()
+defVal = (sp *> "DEFVAL" *> takeWhile (not . isEndOfLine) *> endOfLine) <|> pure ()
+
+descriptionP :: Parser (Maybe Text)
+descriptionP = (Just <$> desc) <|> pure Nothing 
+    where
+    desc = sp *> "DESCRIPTION" *> sp *> char '"' *> takeWhile (/= '"') <* char '"' <* el
 
 oidsP :: Parser OID
 oidsP = frp <$> ("::=" *> sp *> char '{'  *> manyTill oi (char '}') )
